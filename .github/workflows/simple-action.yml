@@ -1,42 +1,72 @@
-name: CI
+name: Build, Test, Run Security Tools
 on:
-    pull_request:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  build:
+  main_scan:
     runs-on: ubuntu-latest
-
+    env:
+      PROJECT_KEY: default
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Mock lint
-        run: echo "Running lint... (mocked)"
-
-      - name: Mock tests
-        run: echo "Running tests... (mocked)"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Dockerfiles in each subdirectory
+      - id: set-matrix
         run: |
-          for dir in ./infrastructure/*/; do
-            [ -f "$dir/Dockerfile" ] || continue
-            name=$(basename "$dir")
-            echo "Building $name from $dir"
-            docker build -t "$name:latest" "$dir"
-          done
-        
-      - name: Detect new vulnerabilities
+          files=$(find infrastructure -type f -name Dockerfile | sed 's|/Dockerfile||' | jq -R . | jq -s '{service: .}')
+          echo "matrix=$(echo $files)" >> $GITHUB_OUTPUT
+
+      - name: Install Orca CLI
+        run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
+
+      - name: Run Orca fs Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} fs scan .
+  
+      - name: Run Orca iac Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} iac scan .
+
+      - name: Run Orca sast Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} sast scan .
+
+      - name: Run Aikido Scan
         uses: AikidoSec/github-actions-workflow@v1.0.13
         with:
-          secret-key: ${{ secrets.AIKIDO_SECRET_KEY }}
+          secret-key: ${{ secrets.AIKIDO_CLIENT_API_KEY }}
           fail-on-timeout: true
           fail-on-dependency-scan: true
           fail-on-sast-scan: true
           fail-on-iac-scan: true
-          minimum-severity: 'LOW'
+          minimum-severity: 'HIGH'
           timeout-seconds: 180
           post-scan-status-comment: 'off'
           post-sast-review-comments: 'off'
+
+  image_scan:
+    needs: main_scan
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_KEY: default
+    strategy:
+      matrix: ${{ fromJSON(needs.main_scan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Dockerfile
+        run: |
+          docker build -t myapp-${{ matrix.service }} ${{ matrix.service }}
+
+      - name: Install Orca CLI
+        run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
+
+      - name: Run Orca Image Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} image scan myapp-${{ matrix.service }}
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5
+        with:
+          image-ref: myapp-${{ matrix.service }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL

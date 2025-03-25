@@ -15,3 +15,4 @@ RUN go build -o /
 EXPOSE 80
 
 CMD ["/health-check"]
+USER username
