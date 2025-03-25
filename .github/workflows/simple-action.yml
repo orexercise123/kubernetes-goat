@@ -43,12 +43,11 @@ jobs:
         run: |
           docker build -t myapp-${{ matrix.service }} ${{ matrix.service }}
 
-      - name: Run Orca Container Image Scan
-        uses: orcasecurity/shiftleft-container-image-action@v1
-        with:
-          api_token: ${{ secrets.ORCA_TOKEN }}
-          project_key: ${{ env.PROJECT_KEY }}
-          image: myapp-${{ matrix.service }}
+      - name: Install Orca CLI
+        run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
+
+      - name: Run Orca Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} image scan myapp-${{ matrix.service }}
 
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5
