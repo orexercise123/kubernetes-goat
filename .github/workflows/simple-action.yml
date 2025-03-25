@@ -16,6 +16,18 @@ jobs:
           files=$(find infrastructure -type f -name Dockerfile | sed 's|/Dockerfile||' | jq -R . | jq -s '{service: .}')
           echo "matrix=$(echo $files)" >> $GITHUB_OUTPUT
 
+      - name: Install Orca CLI
+        run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
+  
+      - name: Run Orca iac Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} iac scan .
+
+      - name: Run Orca fs Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} fs scan .
+
+      - name: Run Orca sast Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} sast scan .
+
       - name: Run Aikido Scan
         uses: AikidoSec/github-actions-workflow@v1.0.13
         with:
@@ -28,18 +40,6 @@ jobs:
           timeout-seconds: 180
           post-scan-status-comment: 'off'
           post-sast-review-comments: 'off'
-
-      - name: Install Orca CLI
-        run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
-  
-      - name: Run Orca iac Scan
-        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} iac scan .
-
-      - name: Run Orca fs Scan
-        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} fs scan .
-
-      - name: Run Orca sast Scan
-        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} sast scan .
 
   image_scan:
     needs: main_scan
