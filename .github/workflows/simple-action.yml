@@ -35,7 +35,7 @@ jobs:
     env:
       PROJECT_KEY: default
     strategy:
-      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.main_scan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
