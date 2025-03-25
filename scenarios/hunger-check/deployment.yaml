@@ -50,6 +50,7 @@ metadata:
   namespace: big-monolith
 type: Opaque
 data:
+  # orca-secrets ignore-line
   k8swebhookapikey: azhzLWdvYXQtZGZjZjYzMDUzOTU1M2VjZjk1ODZmZGZkYTE5NjhmZWM=
 ---
 apiVersion: apps/v1
