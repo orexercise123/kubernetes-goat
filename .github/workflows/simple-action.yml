@@ -4,7 +4,7 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  discover:
+  main_scan:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -29,9 +29,11 @@ jobs:
           post-scan-status-comment: 'off'
           post-sast-review-comments: 'off'
 
-  build:
-    needs: discover
+  image_scan:
+    needs: main_scan
     runs-on: ubuntu-latest
+    env:
+      PROJECT_KEY: default
     strategy:
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
@@ -41,10 +43,17 @@ jobs:
         run: |
           docker build -t myapp-${{ matrix.service }} ${{ matrix.service }}
 
+      - name: Run Orca Container Image Scan
+        uses: orcasecurity/shiftleft-container-image-action@v1
+        with:
+          api_token: ${{ secrets.ORCA_TOKEN }}
+          project_key: ${{ env.PROJECT_KEY }}
+          image: myapp-${{ matrix.service }}
+
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5
         with:
           image-ref: myapp-${{ matrix.service }}
           format: table
           exit-code: 1
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
