@@ -47,7 +47,7 @@ jobs:
         run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
 
       - name: Run Orca Scan
-        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} image scan myapp-${{ matrix.service }}
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --dev --api-token ${{ secrets.ORCA_TOKEN }} image scan myapp-${{ matrix.service }}
 
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5
