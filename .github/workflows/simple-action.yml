@@ -20,12 +20,12 @@ jobs:
 
       - name: Install Orca CLI
         run: curl -sfL 'https://raw.githubusercontent.com/orcasecurity/orca-cli/main/install.sh' | bash -s
-  
-      - name: Run Orca iac Scan
-        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} iac scan .
 
       - name: Run Orca fs Scan
         run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} fs scan .
+  
+      - name: Run Orca iac Scan
+        run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} iac scan .
 
       - name: Run Orca sast Scan
         run: orca-cli --project-key ${{ env.PROJECT_KEY }} --api-token ${{ secrets.ORCA_TOKEN }} sast scan .
