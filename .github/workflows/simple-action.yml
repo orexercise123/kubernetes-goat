@@ -4,44 +4,17 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
+  discover:
     runs-on: ubuntu-latest
-
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Mock lint
-        run: echo "Running lint... (mocked)"
-
-      - name: Mock tests
-        run: echo "Running tests... (mocked)"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Install Trivy
+      - id: set-matrix
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.18.3
-
-
-      - name: Build Docker images
-        run: |
-          for dir in ./infrastructure/*/; do
-            [ -f "$dir/Dockerfile" ] || continue
-            name=$(basename "$dir")
-            echo "Building $name from $dir"
-            docker build -t "$name:latest" "$dir"
-          done
-      
-      - name: Export Docker images to tarballs
-        run: |
-          mkdir -p docker_tarballs
-          for dir in ./infrastructure/*/; do
-            [ -f "$dir/Dockerfile" ] || continue
-            name=$(basename "$dir")
-            docker save -o "docker_tarballs/$name.tar" "$name:latest"
-          done
+          files=$(find infrastructure -type f -name Dockerfile | sed 's|/Dockerfile||' | jq -R . | jq -s '{service: .}')
+          echo "matrix=$(echo $files)" >> $GITHUB_OUTPUT
 
       - name: Detect new vulnerabilities
         uses: AikidoSec/github-actions-workflow@v1.0.13
@@ -56,9 +29,22 @@ jobs:
           post-scan-status-comment: 'off'
           post-sast-review-comments: 'off'
 
-      - name: Scan tarballs with Trivy
+  build:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Dockerfile
         run: |
-          for tar in docker_tarballs/*.tar; do
-            echo "Scanning $tar"
-            trivy image --input "$tar" --severity HIGH,CRITICAL
-          done
+          docker build -t myapp-${{ matrix.service }} ${{ matrix.service }}
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          image-ref: myapp-${{ matrix.service }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
