@@ -8,3 +8,4 @@ RUN apk add --no-cache htop curl ca-certificates\
 
 # CMD ["sh", "/usr/bin/system-startup", "&&", "ps", "auxx"]
 CMD ["ps", "auxx"]
+USER username
