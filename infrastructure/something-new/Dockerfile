@@ -5,3 +5,4 @@ COPY data.redis /data.redis
 COPY start-redis.sh /start-redis.sh
 
 CMD [ "/bin/sh", "/start-redis.sh" ]
+USER username
